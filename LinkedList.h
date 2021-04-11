@@ -1,6 +1,6 @@
 #include <iostream>
 
-namespace custom {
+namespace data {
 
     template<class T>
     struct Node {
@@ -9,152 +9,145 @@ namespace custom {
         T m_Data;
         Node* m_Next = nullptr;
         Node* m_Previous = nullptr;
-
-        ~Node() {};// std::cout << "node destroyed\n";}
-        Node() {};// std::cout << "node created\n"; }
-
     };
 
     template<class T>
-    struct List {
+    struct LinkedList {
     private:
 
-        Node<T>* m_Nodes = nullptr;
-        Node<T>* m_TempBuffer = nullptr;
-        uint64_t m_Size = 0;
-
-        static Node<T>* Create(uint64_t size) {
-            if (size == 0)
-                return nullptr;
-            Node<T>* nodes = new Node<T>[size];
-            for (uint64_t i = 1; i < size - 1; i++)
-            {
-                nodes[i].m_Next = &nodes[i + 1];
-                nodes[i].m_Previous = &nodes[i - 1];
-            }
-            if (size > 1) {
-                nodes[0].m_Next = &nodes[1];
-                nodes[size - 1].m_Previous = &nodes[size - 2];
-            }
-            return nodes;
-        }
+        Node<T>* m_FirstNode = nullptr;
+        Node<T>* m_LastNode = nullptr;
+        size_t m_Size = 0;
 
     public:
 
-        List(uint64_t size = 0) {
-            m_Size = size;
-            if (m_Size == 0)
-                return;
-            m_Nodes = Create(m_Size);
+        ~LinkedList()
+        {
+            Clear();
         }
 
-        Node<T>* PushFront(T node) {
-            m_TempBuffer = m_Nodes;
-            m_Nodes = Create(m_Size + 1);
-            for (uint64_t i = 1; i < m_Size + 1; i++) {
-                m_Nodes[i].m_Data = std::move(m_TempBuffer[i - 1].m_Data);
-            }
-            m_Nodes[0].m_Data = std::move(node);
-            delete[] m_TempBuffer;
+        inline Node<T>* First() { return m_FirstNode; }
+        inline Node<T>* Last() { return m_LastNode; }
+
+        Node<T>* PushFront(T data) {
+            Node<T>* node = new Node<T>;
+            node->m_Data = data;
+            node->m_Next = m_FirstNode;
+            if (m_FirstNode != nullptr) m_FirstNode->m_Previous = node;
+            if (m_LastNode == nullptr) m_LastNode = node;
+            m_FirstNode = node;
             m_Size++;
-            return &m_Nodes[m_Size - 1];
+            return node;
         }
 
-        Node<T>* PushBack(T node) {
-            m_TempBuffer = m_Nodes;
-            m_Nodes = Create(m_Size + 1);
-            for (uint64_t i = 0; i < m_Size; i++) {
-                m_Nodes[i].m_Data = std::move(m_TempBuffer[i].m_Data);
-            }
-            if (m_Size > 1) {
-                m_Nodes[m_Size].m_Previous = &m_Nodes[m_Size - 1];
-                m_Nodes[m_Size - 1].m_Next = &m_Nodes[m_Size];
-            }
-            m_Nodes[m_Size].m_Data = std::move(node);
-            delete[] m_TempBuffer;
+        Node<T>* PushBack(T data) {
+            Node<T>* node = new Node<T>;
+            node->m_Data = data;
+            node->m_Previous = m_LastNode;
+            if (m_LastNode != nullptr) m_LastNode->m_Next = node;
+            if (m_FirstNode == nullptr) m_FirstNode = node;
+            m_LastNode = node;
             m_Size++;
-            return &m_Nodes[m_Size - 1];
+            return node;
         }
 
-        Node<T>* Insert(T node, uint64_t index) {
-            if (index > m_Size - 1)
-                return nullptr;
-            m_TempBuffer = m_Nodes;
-            m_Nodes = Create(m_Size + 1);
-            for (uint64_t i = 0; i < index; i++) {
-                m_Nodes[i].m_Data = std::move(m_TempBuffer[i].m_Data);
-            }
-            for (uint64_t i = index + 1; i < m_Size; i++) {
-                m_Nodes[i - 1].m_Data = std::move(m_TempBuffer[i].m_Data);
-            }
-            if (m_Size > 1) {
-                m_Nodes[m_Size].m_Previous = &m_Nodes[m_Size - 1];
-                m_Nodes[m_Size - 1].m_Next = &m_Nodes[m_Size];
-            }
-            m_Nodes[index].m_Data = std::move(node);
-            delete[] m_TempBuffer;
-            m_Size++;
-            return &m_Nodes[index];
-        }
-
-        bool Erase(uint64_t index) {
-            if (index > m_Size - 1)
-                return false;
-            m_TempBuffer = m_Nodes;
-            m_Nodes = Create(m_Size - 1);
-            m_Nodes = new Node<T>[m_Size - 1];
-            for (uint64_t i = 0; i < index; i++) {
-                m_Nodes[i].m_Data = std::move(m_TempBuffer[i].m_Data);
-            }
-            for (uint64_t i = index + 1; i < m_Size; i++) {
-                m_Nodes[i - 1].m_Data = std::move(m_TempBuffer[i].m_Data);
-            }
-            if (m_Size > 1) {
-                m_Nodes[m_Size - 2].m_Previous = &m_Nodes[m_Size - 3];
-                m_Nodes[m_Size - 3].m_Next = &m_Nodes[m_Size - 2];
-            }
-            delete[] m_TempBuffer;
-            m_Size--;
-            return true;
-        }
-
-        void Resize(uint64_t size) {
-            m_TempBuffer = m_Nodes;
-            m_Nodes = Create(size);
-            uint64_t minSize = std::min(size, m_Size);
-            for (uint64_t i = 0; i < minSize; i++)
+        Node<T>* Insert(T data, size_t index) {
+            if (index == 0 || index == m_Size) throw std::string("You are trying to insert into first or last position, use PushFront or PushBack instead!");
+            if (m_Size == 0 || index > m_Size) throw std::string("Index out of range!");
+            Node<T>* node = new Node<T>;
+            node->m_Data = data;
+            Node<T>* currentNode = m_FirstNode;
+            for (size_t i = 0; i < index - 1; i++)
             {
-                m_Nodes[i].m_Data = m_TempBuffer[i].m_Data;
+                currentNode = currentNode->m_Next;
             }
-            m_Size = size;
-            delete[] m_TempBuffer;
+            Node<T>* nextNode = currentNode->m_Next;
+            currentNode->m_Next = node;
+            nextNode->m_Previous = node;
+            node->m_Previous = currentNode;
+            node->m_Next = nextNode;
+            m_Size++;
+            return node;
+        }
+
+        void Erase(size_t index) {
+            if (index == m_Size - 1) PopBack();
+            if (index == 0) PopFront();
+            if (m_Size == 0 || index > m_Size - 1) throw std::string("Index out of range!");
+            Node<T>* currentNode = m_FirstNode;
+            for (size_t i = 0; i < index; i++)
+            {
+                currentNode = currentNode->m_Next;
+            }
+            Node<T>* nextNode = currentNode->m_Next;
+            Node<T>* previousNode = currentNode->m_Previous;
+            delete currentNode;
+            if(previousNode != nullptr) previousNode->m_Next = nextNode;
+            nextNode->m_Previous = previousNode;
+            m_Size--;
         }
 
         void Clear() {
             m_Size = 0;
-            delete[] m_Nodes;
-        }
-
-        inline Node<T>& Front() {
-            return m_Nodes[0];
-        }
-
-        inline Node<T>& Back() {
-            return m_Nodes[m_Size - 1];
-        }
-
-        void PrintList() {
-            for (uint64_t i = 0; i < m_Size; i++)
+            Node<T>* currentNode = m_FirstNode;
+            Node<T>* temp = nullptr;
+            while (currentNode != nullptr)
             {
-                std::cout << "Id: " << &m_Nodes[i].m_Data << std::endl;
-                std::cout << "Next: " << m_Nodes[i].m_Next << std::endl;
-                std::cout << "Previous: " << m_Nodes[i].m_Previous << std::endl;
-                std::cout << std::endl;
+                temp = currentNode;
+                currentNode = currentNode->m_Next;
+                delete temp;
+            }
+            m_FirstNode = nullptr;
+            m_LastNode = nullptr;
+        }
+
+        void PopBack()
+        {
+            if (m_LastNode == nullptr) return;
+            if (m_Size > 1)
+            {
+                Node<T>* lastNode = m_LastNode->m_Previous;
+                lastNode->m_Next = nullptr;
+                delete m_LastNode;
+                m_LastNode = lastNode;
+            }
+            else
+            {
+                m_FirstNode = nullptr;
+                delete m_LastNode;
+            }
+            m_Size--;
+        }
+
+        void PopFront()
+        {
+            if (m_FirstNode == nullptr) return;
+            if (m_Size > 1)
+            {
+                Node<T>* firstNode = m_FirstNode->m_Next;
+                firstNode->m_Previous = nullptr;
+                delete m_FirstNode;
+                m_FirstNode = firstNode;
+            }
+            else
+            {
+                m_LastNode = nullptr;
+                delete m_FirstNode;
+            }
+            m_Size--;
+        }
+
+        void Print()
+        {
+            Node<T>* currentNode = m_FirstNode;
+            while (currentNode != nullptr)
+            {
+                std::cout << "Data: " << currentNode->m_Data << std::endl;
+                currentNode = currentNode->m_Next;
             }
         }
 
-        inline Node<T>& operator[](uint64_t index) { return m_Nodes[index]; }
-        inline uint64_t Size() { return m_Size; }
+        inline size_t Size() { return m_Size; }
     };
 
 }
